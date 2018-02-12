@@ -140,10 +140,6 @@ nsXREDirProvider::Initialize(nsIFile *aXULAppDir,
     }
   }
 
-#ifdef MOZ_B2G
-  LoadAppBundleDirs();
-#endif
-
   return NS_OK;
 }
 
@@ -772,14 +768,7 @@ IsContentSandboxDisabled()
   if (!BrowserTabsRemoteAutostart()) {
     return false;
   }
-#if defined(XP_WIN)
-  const bool isSandboxDisabled = !mozilla::IsVistaOrLater() ||
-    (Preferences::GetInt("security.sandbox.content.level") < 1);
-#elif defined(XP_MACOSX)
-  const bool isSandboxDisabled =
-    Preferences::GetInt("security.sandbox.content.level") < 1;
-#endif
-  return isSandboxDisabled;
+  return Preferences::GetInt("security.sandbox.content.level") < 1;
 }
 
 //
@@ -962,38 +951,6 @@ nsXREDirProvider::LoadExtensionBundleDirectories()
     }
   }
 }
-
-#ifdef MOZ_B2G
-void
-nsXREDirProvider::LoadAppBundleDirs()
-{
-  nsCOMPtr<nsIFile> dir;
-  bool persistent = false;
-  nsresult rv = GetFile(XRE_APP_DISTRIBUTION_DIR, &persistent, getter_AddRefs(dir));
-  if (NS_FAILED(rv))
-    return;
-
-  dir->AppendNative(NS_LITERAL_CSTRING("bundles"));
-
-  nsCOMPtr<nsISimpleEnumerator> e;
-  rv = dir->GetDirectoryEntries(getter_AddRefs(e));
-  if (NS_FAILED(rv))
-    return;
-
-  nsCOMPtr<nsIDirectoryEnumerator> files = do_QueryInterface(e);
-  if (!files)
-    return;
-
-  nsCOMPtr<nsIFile> subdir;
-  while (NS_SUCCEEDED(files->GetNextFile(getter_AddRefs(subdir))) && subdir) {
-    mAppBundleDirectories.AppendObject(subdir);
-
-    nsCOMPtr<nsIFile> manifest =
-      CloneAndAppend(subdir, "chrome.manifest");
-    XRE_AddManifestLocation(NS_APP_LOCATION, manifest);
-  }
-}
-#endif
 
 static const char *const kAppendPrefDir[] = { "defaults", "preferences", nullptr };
 

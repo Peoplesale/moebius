@@ -22,6 +22,7 @@ const DEBUGGERLOG_PREF = "devtools.debugger.log";
 const CACHES_ON_HTTP_PREF = "dom.caches.testing.enabled";
 const PATH = "browser/devtools/client/storage/test/";
 const MAIN_DOMAIN = "http://test1.example.org/" + PATH;
+const MAIN_DOMAIN_WITH_PORT = "http://test1.example.org:8000/" + PATH;
 const ALT_DOMAIN = "http://sectest1.example.org/" + PATH;
 const ALT_DOMAIN_SECURED = "https://sectest1.example.org:443/" + PATH;
 
@@ -735,6 +736,20 @@ function showColumn(id, state) {
 }
 
 /**
+ * Toggle sort direction on a column by clicking on the column header.
+ *
+ * @param  {String} id
+ *         The uniqueId of the given column.
+ */
+function clickColumnHeader(id) {
+  let columns = gUI.table.columns;
+  let column = columns.get(id);
+  let header = column.header;
+
+  header.click();
+}
+
+/**
  * Show or hide all columns.
  *
  * @param  {Boolean} state
@@ -897,4 +912,40 @@ function setPermission(url, permission) {
             .getService(nsIPermissionManager)
             .addFromPrincipal(principal, permission,
                               nsIPermissionManager.ALLOW_ACTION);
+}
+
+/**
+ * Add an item.
+ * @param  {Array} store
+ *         An array containing the path to the store to which we wish to add an
+ *         item.
+ */
+function* performAdd(store) {
+  let storeName = store.join(" > ");
+  let toolbar = gPanelWindow.document.getElementById("storage-toolbar");
+  let type = store[0];
+
+  yield selectTreeItem(store);
+
+  let menuAdd = toolbar.querySelector(
+    "#add-button");
+
+  if (menuAdd.hidden) {
+    is(menuAdd.hidden, false,
+       `performAdd called for ${storeName} but it is not supported`);
+    return;
+  }
+
+  let eventEdit = gUI.table.once("row-edit");
+  let eventWait = gUI.once("store-objects-updated");
+
+  menuAdd.click();
+
+  let rowId = yield eventEdit;
+  yield eventWait;
+
+  let key = type === "cookies" ? "uniqueKey" : "name";
+  let value = getCellValue(rowId, key);
+
+  is(rowId, value, `Row '${rowId}' was successfully added.`);
 }

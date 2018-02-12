@@ -90,7 +90,22 @@ createStorageSpec({
   methods: Object.assign({},
     editRemoveMethods,
     {
+      addItem: {
+        request: {
+          guid: Arg(0, "string"),
+        },
+        response: {}
+      }
+    }, {
       removeAll: {
+        request: {
+          host: Arg(0, "string"),
+          domain: Arg(1, "nullable:string")
+        },
+        response: {}
+      }
+    }, {
+      removeAllSessionCookies: {
         request: {
           host: Arg(0, "string"),
           domain: Arg(1, "nullable:string")
@@ -111,6 +126,14 @@ types.addDictType("storageobject", {
 const storageMethods = Object.assign({},
   editRemoveMethods,
   {
+    addItem: {
+      request: {
+        guid: Arg(0, "string"),
+        host: Arg(1, "nullable:string")
+      },
+      response: {}
+    }
+  }, {
     removeAll: {
       request: {
         host: Arg(0, "string")

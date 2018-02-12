@@ -319,7 +319,7 @@ class MozbuildObject(ProcessExecutionMixin):
             stem = os.path.join(stem, substs['MOZ_APP_NAME'])
 
         if substs['OS_ARCH'] == 'Darwin':
-            if substs['MOZ_BUILD_APP'] == 'xulrunner':
+            if substs['MOZ_XULRUNNER']:
                 stem = os.path.join(stem, 'XUL.framework');
             else:
                 stem = os.path.join(stem, substs['MOZ_MACBUNDLE_NAME'], 'Contents',
@@ -737,7 +737,12 @@ class MachCommandConditions(object):
     def is_firefox(cls):
         """Must have a Firefox build."""
         if hasattr(cls, 'substs'):
-            return cls.substs.get('MOZ_BUILD_APP') == 'browser'
+            if cls.substs.get('MOZ_BUILD_APP') == 'application/basilisk':
+                return True
+            elif cls.substs.get('MOZ_BUILD_APP') == 'application/palemoon':
+                return True
+            else:
+                return False
         return False
 
     @staticmethod

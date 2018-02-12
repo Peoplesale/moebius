@@ -150,7 +150,7 @@ DIRS += [
 if 'gtk' in CONFIG['MOZ_WIDGET_TOOLKIT']:
     DIRS += ['/toolkit/system/gnome']
 
-DIRS += ['/addon-sdk']
+DIRS += ['/jetpack']
 
 if CONFIG['ENABLE_MARIONETTE']:
     DIRS += [
@@ -179,10 +179,6 @@ if CONFIG['ENABLE_TESTS']:
         '/testing/runtimes',
         '/testing/web-platform',
     ]
-
-    # The file id utility requires breakpad libraries.
-    if CONFIG['MOZ_CRASHREPORTER']:
-        DIRS += ['/testing/tools/fileid']
 
     if CONFIG['MOZ_MEMORY']:
         DIRS += ['/memory/gtest']

@@ -15,6 +15,11 @@ const {isWindowIncluded} = require("devtools/shared/layout/utils");
 const specs = require("devtools/shared/specs/storage");
 const { Task } = require("devtools/shared/task");
 
+const DEFAULT_VALUE = "value";
+
+loader.lazyRequireGetter(this, "naturalSortCaseInsensitive",
+  "devtools/client/shared/natural-sort", true);
+
 // GUID to be used as a separator in compound keys. This must match the same
 // constant in devtools/client/storage/ui.js,
 // devtools/client/storage/test/head.js and
@@ -357,15 +362,20 @@ StorageActors.defaults = function (typeName, observationTopics) {
             toReturn.data.push(...values);
           }
         }
+
         toReturn.total = this.getObjectsSize(host, names, options);
+
         if (offset > toReturn.total) {
           // In this case, toReturn.data is an empty array.
           toReturn.offset = toReturn.total;
           toReturn.data = [];
         } else {
-          toReturn.data = toReturn.data.sort((a, b) => {
-            return a[sortOn] - b[sortOn];
-          }).slice(offset, offset + size).map(a => this.toStoreObject(a));
+          // We need to use natural sort before slicing.
+          let sorted = toReturn.data.sort((a, b) => {
+            return naturalSortCaseInsensitive(a[sortOn], b[sortOn]);
+          });
+          let sliced = sorted.slice(offset, offset + size);
+          toReturn.data = sliced.map(a => this.toStoreObject(a));
         }
       } else {
         let obj = yield this.getValuesForHost(host, undefined, undefined,
@@ -375,15 +385,18 @@ StorageActors.defaults = function (typeName, observationTopics) {
         }
 
         toReturn.total = obj.length;
+
         if (offset > toReturn.total) {
           // In this case, toReturn.data is an empty array.
           toReturn.offset = offset = toReturn.total;
           toReturn.data = [];
         } else {
-          toReturn.data = obj.sort((a, b) => {
-            return a[sortOn] - b[sortOn];
-          }).slice(offset, offset + size)
-            .map(object => this.toStoreObject(object));
+          // We need to use natural sort before slicing.
+          let sorted = obj.sort((a, b) => {
+            return naturalSortCaseInsensitive(a[sortOn], b[sortOn]);
+          });
+          let sliced = sorted.slice(offset, offset + size);
+          toReturn.data = sliced.map(object => this.toStoreObject(object));
         }
       }
 
@@ -492,7 +505,7 @@ StorageActors.createActor({
       return host == null;
     }
 
-    host = trimHttpHttps(host);
+    host = trimHttpHttpsPort(host);
 
     if (cookie.host.startsWith(".")) {
       return ("." + host).endsWith(cookie.host);
@@ -657,6 +670,14 @@ StorageActors.createActor({
     this.editCookie(data);
   }),
 
+  addItem: Task.async(function* (guid) {
+    let doc = this.storageActor.document;
+    let time = new Date().getTime();
+    let expiry = new Date(time + 3600 * 24 * 1000).toGMTString();
+
+    doc.cookie = `${guid}=${DEFAULT_VALUE};expires=${expiry}`;
+  }),
+
   removeItem: Task.async(function* (host, name) {
     let doc = this.storageActor.document;
     this.removeCookie(host, name, doc.nodePrincipal
@@ -667,6 +688,12 @@ StorageActors.createActor({
     let doc = this.storageActor.document;
     this.removeAllCookies(host, domain, doc.nodePrincipal
                                            .originAttributes);
+  }),
+
+  removeAllSessionCookies: Task.async(function* (host, domain) {
+    let doc = this.storageActor.document;
+    this.removeAllSessionCookies(host, domain, doc.nodePrincipal
+                                                  .originAttributes);
   }),
 
   maybeSetupChildProcess() {
@@ -685,6 +712,8 @@ StorageActors.createActor({
         cookieHelpers.removeCookie.bind(cookieHelpers);
       this.removeAllCookies =
         cookieHelpers.removeAllCookies.bind(cookieHelpers);
+      this.removeAllSessionCookies =
+        cookieHelpers.removeAllSessionCookies.bind(cookieHelpers);
       return;
     }
 
@@ -708,6 +737,8 @@ StorageActors.createActor({
       callParentProcess.bind(null, "removeCookie");
     this.removeAllCookies =
       callParentProcess.bind(null, "removeAllCookies");
+    this.removeAllSessionCookies =
+      callParentProcess.bind(null, "removeAllSessionCookies");
 
     addMessageListener("debug:storage-cookie-request-child",
                        cookieHelpers.handleParentRequest);
@@ -742,7 +773,7 @@ var cookieHelpers = {
       host = "";
     }
 
-    host = trimHttpHttps(host);
+    host = trimHttpHttpsPort(host);
 
     let cookies = Services.cookies.getCookiesFromHost(host, originAttributes);
     let store = [];
@@ -878,7 +909,7 @@ var cookieHelpers = {
       opts.path = split[2];
     }
 
-    host = trimHttpHttps(host);
+    host = trimHttpHttpsPort(host);
 
     function hostMatches(cookieHost, matchHost) {
       if (cookieHost == null) {
@@ -898,7 +929,8 @@ var cookieHelpers = {
       if (hostMatches(cookie.host, host) &&
           (!opts.name || cookie.name === opts.name) &&
           (!opts.domain || cookie.host === opts.domain) &&
-          (!opts.path || cookie.path === opts.path)) {
+          (!opts.path || cookie.path === opts.path) &&
+          (!opts.session || (!cookie.expires && !cookie.maxAge))) {
         Services.cookies.remove(
           cookie.host,
           cookie.name,
@@ -918,6 +950,10 @@ var cookieHelpers = {
 
   removeAllCookies(host, domain, originAttributes) {
     this._removeCookies(host, { domain, originAttributes });
+  },
+
+  removeAllSessionCookies(host, domain, originAttributes) {
+    this._removeCookies(host, { domain, originAttributes, session: true });
   },
 
   addCookieObservers() {
@@ -984,6 +1020,12 @@ var cookieHelpers = {
         let rowdata = msg.data.args[0];
         return cookieHelpers.editCookie(rowdata);
       }
+      case "createNewCookie": {
+        let host = msg.data.args[0];
+        let guid = msg.data.args[1];
+        let originAttributes = msg.data.args[2];
+        return cookieHelpers.createNewCookie(host, guid, originAttributes);
+      }
       case "removeCookie": {
         let host = msg.data.args[0];
         let name = msg.data.args[1];
@@ -995,6 +1037,12 @@ var cookieHelpers = {
         let domain = msg.data.args[1];
         let originAttributes = msg.data.args[2];
         return cookieHelpers.removeAllCookies(host, domain, originAttributes);
+      }
+      case "removeAllSessionCookies": {
+        let host = msg.data.args[0];
+        let domain = msg.data.args[1];
+        let originAttributes = msg.data.args[2];
+        return cookieHelpers.removeAllSessionCookies(host, domain, originAttributes);
       }
       default:
         console.error("ERR_DIRECTOR_PARENT_UNKNOWN_METHOD", msg.json.method);
@@ -1109,6 +1157,14 @@ function getObjectForLocalOrSessionStorage(type) {
         { name: "name", editable: true },
         { name: "value", editable: true }
       ];
+    }),
+
+    addItem: Task.async(function* (guid, host) {
+      let storage = this.hostVsStores.get(host);
+      if (!storage) {
+        return;
+      }
+      storage.setItem(guid, DEFAULT_VALUE);
     }),
 
     /**
@@ -2414,7 +2470,12 @@ exports.setupParentProcessForIndexedDB = function ({ mm, prefix }) {
 /**
  * General helpers
  */
-function trimHttpHttps(url) {
+function trimHttpHttpsPort(url) {
+  let match = url.match(/(.+):\d+$/);
+
+  if (match) {
+    url = match[1];
+  }
   if (url.startsWith("http://")) {
     return url.substr(7);
   }

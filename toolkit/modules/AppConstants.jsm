@@ -143,14 +143,6 @@ this.AppConstants = Object.freeze({
   false,
 #endif
 
-# MOZ_B2G covers both device and desktop b2g
-  MOZ_B2G:
-#ifdef MOZ_B2G
-  true,
-#else
-  false,
-#endif
-
   XP_UNIX:
 #ifdef XP_UNIX
   true,
@@ -190,11 +182,7 @@ this.AppConstants = Object.freeze({
   },
 
   MOZ_CRASHREPORTER:
-#ifdef MOZ_CRASHREPORTER
-  true,
-#else
   false,
-#endif
 
   MOZ_VERIFY_MAR_SIGNATURE:
 #ifdef MOZ_VERIFY_MAR_SIGNATURE
@@ -226,13 +214,6 @@ this.AppConstants = Object.freeze({
 
   ASAN:
 #ifdef MOZ_ASAN
-  true,
-#else
-  false,
-#endif
-
-  MOZ_B2G_RIL:
-#ifdef MOZ_B2G_RIL
   true,
 #else
   false,
@@ -321,14 +302,19 @@ this.AppConstants = Object.freeze({
   MOZ_APP_NAME: "@MOZ_APP_NAME@",
   MOZ_APP_VERSION: "@MOZ_APP_VERSION@",
   MOZ_APP_VERSION_DISPLAY: "@MOZ_APP_VERSION_DISPLAY@",
-  MOZ_BUILD_APP: "@MOZ_BUILD_APP@",
+
+  MOZ_BUILD_APP:
+#ifdef MOZ_PHOENIX
+  "browser",
+#else
+  "@MOZ_BUILD_APP@",
+#endif
+
   MOZ_MACBUNDLE_NAME: "@MOZ_MACBUNDLE_NAME@",
   MOZ_UPDATE_CHANNEL: "@MOZ_UPDATE_CHANNEL@",
   INSTALL_LOCALE: "@AB_CD@",
   MOZ_WIDGET_TOOLKIT: "@MOZ_WIDGET_TOOLKIT@",
   ANDROID_PACKAGE_NAME: "@ANDROID_PACKAGE_NAME@",
-  MOZ_B2G_VERSION: @MOZ_B2G_VERSION@,
-  MOZ_B2G_OS_NAME: @MOZ_B2G_OS_NAME@,
 
   DEBUG_JS_MODULES: "@DEBUG_JS_MODULES@",
 

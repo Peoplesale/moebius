@@ -747,22 +747,14 @@ if CONFIG['MOZ_WEBSPEECH']:
         'SpeechSynthesisEvent.webidl',
     ]
 
-if CONFIG['MOZ_BUILD_APP'] in ['browser', 'xulrunner'] or CONFIG['MOZ_SUITE']:
+if CONFIG['MOZ_PHOENIX'] or CONFIG['MOZ_SUITE']:
     WEBIDL_FILES += [
         'BrowserFeedWriter.webidl',
     ]
 
-if CONFIG['MOZ_BUILD_APP'] in ['browser', 'mobile/android', 'xulrunner']:
+if CONFIG['MOZ_PHOENIX'] or CONFIG['MOZ_FENNEC'] or CONFIG['MOZ_XULRUNNER']:
     WEBIDL_FILES += [
         'External.webidl',
-    ]
-
-if CONFIG['MOZ_B2G']:
-    WEBIDL_FILES += [
-        'MozApplicationEvent.webidl'
-    ]
-    GENERATED_EVENTS_WEBIDL_FILES += [
-        'MozApplicationEvent.webidl'
     ]
 
 if CONFIG['ACCESSIBILITY']:
